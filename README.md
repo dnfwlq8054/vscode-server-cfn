@@ -1,6 +1,7 @@
 # vscode-server-cfn
 
 ## AWS Cloudformation을 사용한 code-server 구축 CNF입니다.
+해당 CFN에는 서울리전과 도쿄리전을 설정하여 설치할 수 있습니다.
 
 Cloudformation Stack을 생성하실 때, 파라미터 값을 3개만 수정하시면 됩니다.
  - WebVscodeDomainName에 구매하신 도매인 이름을 넣어주세요.
