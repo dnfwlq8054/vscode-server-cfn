@@ -5,10 +5,10 @@ Description: IaC using vscode in web console. (Cloud Formation).
 Parameters:
   Region:
     Type: String
-    Default: ap-northeast-2
+    Default: Seoul
     AllowedValues:
-    - ap-northeast-2
-    - ap-northeast-1
+    - Seoul
+    - Tokoy
 
   WebVscodeVPCCidr:
     Type: String
@@ -83,7 +83,7 @@ Resources:
   WebVscodePublicSubnet:
     Type: AWS::EC2::Subnet
     Properties: 
-      AvailabilityZone: !FindInMap [ AvailabilityZone, Seoul, A ]
+      AvailabilityZone: !FindInMap [ AvailabilityZone, !Ref Region, A ]
       CidrBlock: !Ref WebVscodePublicSubnetCidr
       Tags: 
       - Key: Name
@@ -151,7 +151,7 @@ Resources:
   WebVscodeEc2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      AvailabilityZone: !FindInMap [ AvailabilityZone, Seoul, A ]
+      AvailabilityZone: !FindInMap [ AvailabilityZone, !Ref Region, A ]
       NetworkInterfaces:
       - AssociatePublicIpAddress: true
         DeleteOnTermination: true
@@ -160,7 +160,7 @@ Resources:
         - !Ref WebVscodeSecurityGroup
         SubnetId: !Ref WebVscodePublicSubnet
         Description: Web vscode ec2 interface
-      ImageId: !FindInMap [ AWSRegionAMI, Seoul, Ubuntu ]
+      ImageId: !FindInMap [ AWSRegionAMI, !Ref Region, Ubuntu ]
       InstanceType: t2.micro
       KeyName: !Ref WebVscodeSSHKeyName
       Tags:
