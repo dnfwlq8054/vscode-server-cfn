@@ -191,7 +191,7 @@ Resources:
             }
           }" >> /etc/nginx/sites-available/code-server
 
-          # create  start.sh script
+          # create start.sh script
           echo "#!/bin/bash
 
           curl -fsSL https://code-server.dev/install.sh | sh
