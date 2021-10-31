@@ -1,0 +1,209 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: IaC using vscode in web console. (Cloud Formation).
+
+Parameters:
+  Region:
+    Type: String
+    Default: ap-northeast-2
+    AllowedValues:
+    - ap-northeast-2
+    - ap-northeast-1
+
+  WebVscodeVPCCidr:
+    Type: String
+    Default: 10.111.0.0/16
+    Description: Web vscode VPC cidr
+
+  WebVscodePublicSubnetCidr:
+    Type: String
+    Default: 10.111.8.0/24
+    Description: Web vscode public subnet cidr
+
+  WebVscodeSSHKeyName:
+    Type: String
+    Default: hwani_key
+    Description: Web vscode ec2 ssh key name
+
+  WebVscodeDomainName:
+    Type: String
+    Default: www.gorani.dev
+    Description: Your domain name
+
+  WebVscodeEamil:
+    Type: String
+    Default: dnfwlq8054@naver.com
+    Description: Your Email Adderess
+
+Mappings: 
+  AvailabilityZone:
+    Seoul:
+      A: ap-northeast-2a
+      B: ap-northeast-2b
+      C: ap-northeast-2c
+      D: ap-northeast-2d
+    Tokyo:
+      A: ap-northeast-1a
+      B: ap-northeast-1b
+      C: ap-northeast-1c
+      D: ap-northeast-1d
+
+  AWSRegionAMI:
+    Seoul:
+      Ubuntu: ami-04876f29fd3a5e8ba
+    Tokyo:
+      Ubuntu: ami-0df99b3a8349462c6
+
+Resources:
+
+  WebVscodeVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref WebVscodeVPCCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: false
+      InstanceTenancy: default
+      Tags:
+      - Key: Name
+        Value: Web vscode vpc
+
+  WebVscodeInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+      - Key: Name
+        Value: Web vscode internet gateway
+
+  WebVscodeInternetGatewayVPCAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref WebVscodeInternetGateway
+      VpcId: !Ref WebVscodeVPC
+
+  WebVscodePublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !FindInMap [ AvailabilityZone, Seoul, A ]
+      CidrBlock: !Ref WebVscodePublicSubnetCidr
+      Tags: 
+      - Key: Name
+        Value: Web vscode public subnet
+      VpcId: !Ref WebVscodeVPC
+
+  WebVscodePublicSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WebVscodeVPC
+      Tags:
+      - Key: Name
+        Value: Web vscode public subnet route table      
+
+  WebVscodePublicSubnetRoute:
+    Type: AWS::EC2::Route
+    Properties: 
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref WebVscodeInternetGateway
+      RouteTableId: !Ref WebVscodePublicSubnetRouteTable
+
+  WebVscodeSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref WebVscodePublicSubnetRouteTable
+      SubnetId: !Ref WebVscodePublicSubnet      
+      
+  WebVscodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web vscode SG
+      GroupName: Web vscode SG(hwan)
+      SecurityGroupEgress: 
+      - CidrIp: 0.0.0.0/0
+        Description: HTTPS Outbound
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443
+      - CidrIp: 0.0.0.0/0
+        Description: HTTP Outbound
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80     
+      SecurityGroupIngress: 
+      - CidrIp: 0.0.0.0/0
+        Description: SSH Inbound
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+      - CidrIp: 0.0.0.0/0
+        Description: HTTPS Outbound
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443
+      - CidrIp: 0.0.0.0/0
+        Description: HTTP Outbound
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80        
+      Tags:
+      - Key: Name
+        Value: Web vscode SG
+      VpcId: !Ref WebVscodeVPC
+
+  WebVscodeEc2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !FindInMap [ AvailabilityZone, Seoul, A ]
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: true
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        GroupSet: 
+        - !Ref WebVscodeSecurityGroup
+        SubnetId: !Ref WebVscodePublicSubnet
+        Description: Web vscode ec2 interface
+      ImageId: !FindInMap [ AWSRegionAMI, Seoul, Ubuntu ]
+      InstanceType: t2.micro
+      KeyName: !Ref WebVscodeSSHKeyName
+      Tags:
+      - Key: Name
+        Value: Web vscode server
+      UserData:
+        Fn::Base64: !Sub 
+        - |
+          #!/bin/bash
+          
+          apt update
+
+          # install nginx, certbot ("Let's Encrypt")
+          apt install -y nginx certbot python3-certbot-nginx
+
+          # nginx proxy setting
+          echo "server {
+            listen 80;
+            listen [::]:80;
+            server_name ${DomainName};
+
+            location / {
+              proxy_pass http://localhost:8080/;
+              proxy_set_header Host \$host;
+              proxy_set_header Upgrade \$http_upgrade;
+              proxy_set_header Connection upgrade;
+              proxy_set_header Accept-Encoding gzip;
+            }
+          }" >> /etc/nginx/sites-available/code-server
+
+          # start vscode-server
+          echo "#!/bin/bash
+
+          curl -fsSL https://code-server.dev/install.sh | sh
+
+          sudo systemctl enable --now code-server@\$USER
+
+          sudo ln -s ../sites-available/code-server /etc/nginx/sites-enabled/code-server
+          sudo certbot --non-interactive --redirect --agree-tos --nginx -d ${DomainName} -m ${Email}
+          sudo nginx -t && sudo systemctl restart nginx
+          sudo systemctl restart code-server@\$USER" >> /home/ubuntu/start.sh && chmod +x /home/ubuntu/start.sh
+        - {
+            DomainName: !Ref WebVscodeDomainName,
+            Email: !Ref WebVscodeEamil
+          }
+          
