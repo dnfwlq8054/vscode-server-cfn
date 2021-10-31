@@ -16,3 +16,6 @@ Cloudformation Stack을 생성하실 때, 파라미터 값을 3개만 수정하�
 
 ## Architecture
 ![code-server](https://user-images.githubusercontent.com/15880397/139571123-1bc2223a-d99c-4b42-a7ef-2f6f1eca06cc.png)
+
+자세한 방법은 블로그를 참고해주세요.
+https://hwan-shell.tistory.com/360
