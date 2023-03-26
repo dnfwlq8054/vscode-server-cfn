@@ -30,7 +30,7 @@ Parameters:
     Default: www.gorani.dev
     Description: Your domain name
 
-  WebVscodeEamil:
+  WebVscodeEmail:
     Type: String
     Default: dnfwlq8054@naver.com
     Description: Your Email Adderess
@@ -204,6 +204,6 @@ Resources:
           sudo systemctl restart code-server@\$USER" >> /home/ubuntu/start.sh && chmod +x /home/ubuntu/start.sh
         - {
             DomainName: !Ref WebVscodeDomainName,
-            Email: !Ref WebVscodeEamil
+            Email: !Ref WebVscodeEmail
           }
           
